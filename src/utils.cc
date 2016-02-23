@@ -144,6 +144,10 @@ midi_to_key_events(const std::vector<uint8_t>& message_stream)
   return res;
 }
 
+#if !defined(__clang__)
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wunsafe-loop-optimizations"
+#endif
 // in case there is a release pitch and a play pitch at the same time
 // in the midi part, make sure the release happens *before* the play.
 // the release must be from a previous play as otherwise it would mean
@@ -152,8 +156,10 @@ midi_to_key_events(const std::vector<uint8_t>& message_stream)
 static
 void fix_midi_order(std::vector<struct music_event>& music)
 {
-  for (auto& music_event : music)
+  const auto nb_events = music.size();
+  for (auto i = decltype(nb_events){0}; i < nb_events; ++i)
   {
+    auto& music_event = music[i];
     auto& messages = music_event.midi_messages;
 
     const auto messages_begin = messages.begin();
@@ -180,6 +186,9 @@ void fix_midi_order(std::vector<struct music_event>& music)
     }
   }
 }
+#if !defined(__clang__)
+  #pragma GCC diagnostic pop
+#endif
 
 // a song is just a succession of music_event to be played
 std::vector<struct music_event>
@@ -252,8 +261,10 @@ group_events_by_time(const std::vector<struct midi_event>& midi_events,
   // sanity check: count the total number of midi and key events in res. It must
   // match the number of parameters given in the parameters
   uint64_t nb_events = 0;
-  for (const auto& elt : res)
+  const auto nb_res_elt = res.size();
+  for (auto i = decltype(nb_res_elt){0}; i < nb_res_elt; ++i)
   {
+    const auto& elt = res[i];
     nb_events += elt.midi_messages.size() + elt.key_events.size();
   }
 
@@ -269,7 +280,7 @@ group_events_by_time(const std::vector<struct midi_event>& midi_events,
 
   // sanity check: for every two different elements in res, they must start at different time
   // since res is sorted by now, only need to check
-  for (auto i = decltype(res.size()){1}; i < res.size(); ++i)
+  for (auto i = decltype(nb_res_elt){1}; i < nb_res_elt; ++i)
   {
     if (res[i].time == res[i - 1].time)
     {
@@ -280,10 +291,13 @@ group_events_by_time(const std::vector<struct midi_event>& midi_events,
   // sanity check: there must be as many release events as pressed events
   uint64_t nb_released = 0;
   uint64_t nb_pressed = 0;
-  for (const auto& elt : res)
+  for (auto i = decltype(nb_res_elt){0}; i < nb_res_elt; ++i)
   {
-    for (const auto& k : elt.key_events)
+    const auto& elt = res[i];
+    const auto nb_key_events = elt.key_events.size();
+    for (auto j = decltype(nb_key_events){0}; j < nb_key_events; ++j)
     {
+      const auto& k = elt.key_events[j];
       if (k.ev_type == key_data::type::released)
       {
 	nb_released++;

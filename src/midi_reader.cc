@@ -303,8 +303,10 @@ static void set_real_timings(std::vector<struct midi_event>& events,
   {
     case timecode:
     {
-      for (auto& ev : events)
+      const auto nb_events = events.size();
+      for (auto i = decltype(nb_events){0}; i < nb_events; ++i)
       {
+	auto& ev = events[i];
 	ev.time = ev.time * tickdiv * 1000 * 1000; // nanosecond
       }
       break;

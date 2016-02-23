@@ -178,8 +178,10 @@ void update_keyboard(const music_event& music_ev, struct keys_color& keyboard)
 {
 
   /* update the keyboard */
-  for (const auto& k_ev : music_ev.key_events)
+  const auto nb_events = music_ev.key_events.size();
+  for (auto i = decltype(nb_events){0}; i < nb_events; ++i)
   {
+    const auto& k_ev = music_ev.key_events[i];
     switch (k_ev.ev_type)
     {
       case key_data::type::pressed:

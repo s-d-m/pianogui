@@ -73,13 +73,13 @@ void MainWindow::process_keyboard_event(const music_event& keys_event)
 
 void MainWindow::song_event_loop()
 {
-  if (song_pos == INVALID_SONG_POS)
+  if (is_in_pause.load())
   {
     QTimer::singleShot(100, this, SLOT(song_event_loop()));
     return;
   }
 
-  if (is_in_pause)
+  if (song_pos == INVALID_SONG_POS)
   {
     QTimer::singleShot(100, this, SLOT(song_event_loop()));
     return;
@@ -109,6 +109,8 @@ void MainWindow::song_event_loop()
 
 void MainWindow::stop_song()
 {
+  this->is_in_pause = true;
+
   {
     // just close the output ports, and reopens it. This avoids getting a 'buzzing' noise
     // being played continuously through the speakers. It also avoids the need to create a
@@ -129,7 +131,6 @@ void MainWindow::stop_song()
   // reinitialise the song field
   this->song.clear();
   this->song_pos = INVALID_SONG_POS;
-  this->is_in_pause = false;
 
   // reset all keys to up on the keyboard (doesn't play key_released events).
   reset_color(keyboard);
@@ -146,6 +147,7 @@ void MainWindow::open_file(const std::string& filename)
     this->song_pos = 0;
     sound_listener.closePort();
     this->selected_input.clear();
+    this->is_in_pause = false;
   }
   catch (std::exception& e)
   {
@@ -465,8 +467,11 @@ MainWindow::MainWindow(QWidget *parent) :
   signal_checker_timer(),
   song(),
   sound_player(RtMidi::LINUX_ALSA),
-  sound_listener(RtMidi::LINUX_ALSA)
+  sound_listener(RtMidi::LINUX_ALSA),
+  is_in_pause()
 {
+  atomic_init(&is_in_pause, true);
+
   ui->setupUi(this);
   ui->keyboard->setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
   ui->keyboard->setScene(scene);

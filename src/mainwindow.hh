@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_HH
 #define MAINWINDOW_HH
 
+#include <atomic>
 #include <QMainWindow>
 #include <QGraphicsScene>
 
@@ -67,8 +68,8 @@ class MainWindow : public QMainWindow
     RtMidiIn  sound_listener;
     std::string selected_output_port = "";
     std::string selected_input = "";
-    unsigned int song_pos = INVALID_SONG_POS;
-    bool is_in_pause = false;
+    volatile unsigned int song_pos = INVALID_SONG_POS;
+    std::atomic<bool> is_in_pause;
 };
 
 #pragma GCC diagnostic pop

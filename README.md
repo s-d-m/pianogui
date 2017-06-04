@@ -10,7 +10,7 @@ Pianogui is the "graphical" equivalent of [Pianoterm][pianoterm site]
 Below is a screenshots of the main window.
 
 
-![screenshot of pianoguy] (./misc/mainwindow.png?raw=true)
+![screenshot of pianoguy](./misc/mainwindow.png?raw=true)
 
 
 License

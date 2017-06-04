@@ -77,9 +77,37 @@ ifeq ($(findstring clang,$(CXX)), clang)
 		    -Wno-c++98-compat-pedantic \
 		    -Wno-c99-extensions \
 		    -Wno-padded # remove padding warning
+
+  SANITIZERS = \
+	-fsanitize=address \
+	-fsanitize=undefined \
+	-fsanitize=integer
+
+# -fsanitize=memory \
+# -fsanitize=dataflow \
+# -fsanitize=cfi \
+# -fsanitize=safe-stack
+
+# -fsanitize=thread #is incompatible with sanitize address
+# -fsanitize=leak # leak sanitizer can't be used if either address or thread sanitizer is used
+
+  HARDENING_FLAGS = \
+	-fstack-protector-all \
+	--param ssp-buffer-size=4 \
+	-D_FORTIFY_SOURCE=2 \
+	-fPIC
+
+  LDFLAGS = \
+	-pie \
+	-z noexecstack \
+	-z now\
+	-z relro \
+	-z nodlopen \
+	-z nodump
+
 else
 # for g++ 4.9
-  CXX_WARN_FLAGS ?= \
+  CXX_WARN_FLAGS_FOR_GCC_4.9 ?= \
 	-Werror \
 	-Wno-pedantic \
 	-Wall \
@@ -134,39 +162,107 @@ else
 #	-Wpadded \
 
 # for G++ 5.1/5.2
-  CXX_WARN_FLAGS += \
+  CXX_WARN_FLAGS_FOR_GCC_5 := \
+	${CXX_WARN_FLAGS_FOR_GCC_4.9} \
 	-Wswitch-bool \
 	-Wlogical-not-parentheses \
 	-Wsizeof-array-argument \
 	-Wbool-compare  \
 	-Wodr \
 	-Wsuggest-final-types \
-	-Wsuggest-final-methods
+	-Wsuggest-final-methods \
+	-Wsuggest-override
+
+  CXX_WARN_FLAGS_FOR_GCC_6 := \
+	${CXX_WARN_FLAGS_FOR_GCC_5} \
+	-Wnull-dereference -fdelete-null-pointer-checks \
+	-Wduplicated-cond \
+	-Wplacement-new=2 \
+	-Wconditionally-supported \
+	-fsized-deallocation \
+	-Wsized-deallocation \
+
+  CXX_WARN_FLAGS_FOR_GCC_7 := \
+	${CXX_WARN_FLAGS_FOR_GCC_6} \
+	-Wduplicated-branches \
+	-Wrestrict \
+	-Wregister \
+	-Wdangling-else \
+	-Walloc-size-larger-than=1073741824 \
+	-Walloc-zero \
+	-Walloca \
+	-Wformat-overflow=2 \
+	-Wformat-truncation=2 \
+	-Wstringop-overflow=4 \
+	-Waligned-new
+#	-Walloc-size-larger-than=1073741824 \ # Allocating more than 1GiB is likely a bug
+
+
+  GCC_VERSION := $(shell "${CXX}" -v 2>&1 | gawk '($$1 == "gcc") && ($$2 == "version") { sub(/\..*/, "", $$3) ; print $$3 ; exit }' )
+
+  ifeq ($(shell [ "${GCC_VERSION}" -ge 7 ] && echo $$?),0)
+	CXX_WARN_FLAGS := ${CXX_WARN_FLAGS_FOR_GCC_7}
+  endif
+
+  ifeq (${GCC_VERSION},6)
+	CXX_WARN_FLAGS := ${CXX_WARN_FLAGS_FOR_GCC_6}
+  endif
+
+  ifeq (${GCC_VERSION},5)
+	CXX_WARN_FLAGS := ${CXX_WARN_FLAGS_FOR_GCC_5}
+  endif
+
+  ifeq (${CXX_WARN_FLAGS},)
+	CXX_WARN_FLAGS := ${CXX_WARN_FLAGS_FOR_GCC_4.9}
+  endif
+
 
 # sanitizers on g++5.2
   SANITIZERS = \
 	-fsanitize=address \
 	-fsanitize=undefined \
+	-fbounds-check \
 # -fcheck-pointer-bounds -mmpx # pointer checker is not supported with address sanitiser
 # -fsanitize=thread #is incompatible with sanitize address
 # -fsanitize=leak # leak sanitizer can't be used if either address or thread sanitizer is used
 
+  HARDENING_FLAGS = \
+	-fstack-protector-all \
+	--param ssp-buffer-size=4 \
+	-D_FORTIFY_SOURCE=2 \
+	-fPIC
+
+  LDFLAGS = \
+	-pie \
+	-z noexecstack \
+	-z now\
+	-z relro \
+	-z nodlopen \
+	-z nodump
 endif
 
 BUILD ?= debug
 
-CXXFLAGS = -std=c++14 -Werror -fPIC ${CXX_WARN_FLAGS} ${SANITIZERS} ${DEFINES}
+CXXFLAGS ?= -std=c++14 -Werror -fno-rtti -fstrict-enums ${HARDENING_FLAGS} ${CXX_WARN_FLAGS} ${SANITIZERS} ${DEFINES}
 
 ifeq ($(BUILD),release)
-  CXXFLAGS += -O3
+  CXXFLAGS += -O3 -flto
+  CFLAGS += -O3 -flto
+  LDFLAGS += -s
 else
   CXXFLAGS += -O0 -ggdb3
 endif
 
-
+ifeq ($(GCOV),1)
+  CXXFLAGS += --coverage
+endif
 
 ifeq ($(GPROF),1)
   CXXFLAGS += -pg
+endif
+
+ifeq ($(32_BITS),1)
+  CXXFLAGS += -m32
 endif
 
 SCAN_BUILD = scan-build

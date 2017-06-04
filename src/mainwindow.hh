@@ -40,7 +40,7 @@ class MainWindow : public QMainWindow
   private:
     void stop_song();
     void process_keyboard_event(const music_event& keys_event);
-    void keyPressEvent(QKeyEvent * event);
+    void keyPressEvent(QKeyEvent * event) override;
     static void on_midi_input(double timestamp __attribute__((unused)), std::vector<unsigned char> *message, void* param);
 
   signals:

@@ -102,7 +102,9 @@ void MainWindow::song_event_loop()
   {
     // call this function back for the next event
     song_pos++;
-    QTimer::singleShot( static_cast<int>((song[song_pos].time - song[song_pos - 1].time) / 1'000'000), this, SLOT(song_event_loop()) );
+    const auto time_before_retrigger = (song[song_pos].time - song[song_pos - 1].time);
+    const auto ms_before_retrigger = std::chrono::duration_cast<std::chrono::milliseconds>(time_before_retrigger);
+    QTimer::singleShot( static_cast<int>(ms_before_retrigger.count()), this, SLOT(song_event_loop()) );
   }
 
 }
@@ -305,7 +307,7 @@ void MainWindow::handle_input_midi(std::vector<unsigned char> message)
   std::vector<midi_message> tmp;
   tmp.push_back(message);
 
-  const music_event event ( /* time */ 0,
+  const music_event event ( /* time */ std::chrono::nanoseconds{0},
 			    /* midi_message */ tmp,
 			    /* key events */ midi_to_key_events(message) );
 
